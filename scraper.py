@@ -31,7 +31,7 @@ def get_indian_proxies():
     """Fetches a fresh list of Indian proxies from ProxyScrape."""
     print("🌍 Fetching fresh Indian proxies...")
     try:
-        r = requests.get(PROXY_API_URL, timeout=10)
+        r = requests.get(PROXY_API_URL, timeout=10000)
         if r.status_code == 200:
             # The API returns one proxy per line like 'http://1.2.3.4:8080'
             proxies = [line.strip() for line in r.text.split('\n') if line.strip()]
