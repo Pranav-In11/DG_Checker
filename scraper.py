@@ -7,7 +7,15 @@ import random
 import time
 
 # Load environment variables
-load_dotenv()
+# --- SAFETY FIX ---
+# This allows the script to run on GitHub Actions even if python-dotenv is missing
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # This means we are on GitHub Actions (or the library isn't installed).
+    # We don't need .env files there because we use Secrets.
+    pass
 
 # --- CONFIGURATION ---
 EMAIL = os.getenv('USER_EMAIL')
