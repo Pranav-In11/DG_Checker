@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "dependencies": {
-    "puppeteer": "^21.0.0",
+    "puppeteer": "latest",
     "axios": "^1.6.0"
   }
 }
