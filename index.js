@@ -13,8 +13,17 @@ async function run() {
   console.log('Starting Result Checker...');
   
 const browser = await puppeteer.launch({
-    headless: true, // <--- NEW WAY (Uses the new headless mode by default now)
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    headless: true, // Use modern headless mode
+    ignoreHTTPSErrors: true, // Ignore SSL/security certificate issues
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-web-security', // Disable standard security checks
+      '--disable-features=IsolateOrigins,site-per-process', // prevent site isolation
+      '--allow-running-insecure-content', // Allow HTTP content
+      '--disable-blink-features=AutomationControlled', // Try to hide that we are a bot
+      '--disable-extensions' 
+    ]
   });
   
   const page = await browser.newPage();
