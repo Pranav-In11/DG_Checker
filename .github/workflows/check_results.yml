@@ -1,10 +1,9 @@
-name: Check CREBS Results
+name: Check CREBS Results (Python)
 
 on:
   schedule:
-    # Runs at 06:00, 12:00, 18:00, and 00:00 UTC everyday
-    - cron: '0 */6 * * *'
-  workflow_dispatch: # Allows you to run it manually from the Actions tab
+    - cron: '0 */6 * * *' # Every 6 hours
+  workflow_dispatch:
 
 jobs:
   check-results:
@@ -14,13 +13,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
-        node-version: '18'
+        python-version: '3.9'
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        pip install -r requirements.txt
 
     - name: Run Scraper
       env:
@@ -28,4 +28,4 @@ jobs:
         USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
         TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
         TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: node index.js
+      run: python scraper.py
