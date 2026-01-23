@@ -12,9 +12,9 @@ const LOGIN_URL = 'http://220.156.188.226/CREBS/';
 async function run() {
   console.log('Starting Result Checker...');
   
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for GitHub Actions
+const browser = await puppeteer.launch({
+    headless: true, // <--- NEW WAY (Uses the new headless mode by default now)
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   
   const page = await browser.newPage();
