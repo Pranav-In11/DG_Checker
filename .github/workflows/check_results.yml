@@ -1,9 +1,9 @@
-name: Check CREBS Results (Python)
+name: Check CREBS Results (Auto Proxy)
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Every 6 hours
-  workflow_dispatch:
+    - cron: '0 */3 * * *' # Run every 3 hours
+  workflow_dispatch:      # Run manually
 
 jobs:
   check-results:
@@ -19,8 +19,9 @@ jobs:
         python-version: '3.9'
 
     - name: Install dependencies
+      # CRITICAL CHANGE: We added 'requests[socks]' to fix the SOCKS error
       run: |
-        pip install -r requirements.txt
+        pip install requests[socks] beautifulsoup4 lxml
 
     - name: Run Scraper
       env:
