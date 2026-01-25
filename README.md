@@ -1,21 +1,7 @@
-Here is a professional, ready-to-use README.md file for your project. You can copy-paste this directly into your GitHub repository.
-
-🎓 CREBS Result Notifier & Scraper
-This is an automated tool designed to check the CREBS (Comprehensive Result Evaluation & Booking System) portal for new exam results. It logs into the student dashboard, scrapes the latest result status, and sends an instant notification to your Telegram account.
-
-Because the CREBS portal is geo-restricted (accessible only from India) and often slow, this tool includes built-in strategies to bypass blocks and handle server timeouts.
-
-✨ Features
-🚀 Automated Login: Handles ASP.NET session management and authentication automatically.
-
-📱 Telegram Alerts: Sends a formatted message with Pass/Fail status (✅, ❌) directly to your phone.
-
-🌍 Geo-Block Bypass:
-
-Auto-Proxy Mode: Automatically fetches and rotates Indian proxies to connect from GitHub Cloud.
-
-Self-Hosted Mode: Runs on your local machine (India IP) for 100% reliability.
-
-⏰ Scheduled Checks: Runs automatically every 3 hours via GitHub Actions.
-
-🔒 Secure: Credentials are stored in GitHub Secrets, never hardcoded in the script.
+🎓 CREBS Result Notifier & ScraperThis is an automated tool designed to check the CREBS (Comprehensive Result Evaluation & Booking System) portal for new exam results. It logs into the student dashboard, scrapes the latest result status, and sends an instant notification to your Telegram account.Because the CREBS portal is geo-restricted (accessible only from India) and often slow, this tool includes built-in strategies to bypass blocks and handle server timeouts.✨ Features🚀 Automated Login: Handles ASP.NET session management and authentication automatically.📱 Telegram Alerts: Sends a formatted message with Pass/Fail status (✅, ❌) directly to your phone.🌍 Geo-Block Bypass:Auto-Proxy Mode: Automatically fetches and rotates Indian proxies to connect from GitHub Cloud.Self-Hosted Mode: Runs on your local machine (India IP) for 100% reliability.⏰ Scheduled Checks: Runs automatically every 3 hours via GitHub Actions.🔒 Secure: Credentials are stored in GitHub Secrets, never hardcoded in the script.🛠️ PrerequisitesBefore setting this up, you need:A Telegram Bot:Chat with @BotFather to create a bot and get the API Token.Chat with @userinfobot to get your personal Chat ID.CREBS Credentials: Your valid Email and Password for the portal.⚙️ Setup Instructions1. Repository SetupClone or fork this repository.Ensure your main script is named scraper.py and your workflow file is in .github/workflows/check_results.yml.2. Configure SecretsGo to your GitHub Repository -> Settings -> Secrets and variables -> Actions -> New repository secret.Add the following four secrets:Secret NameValueUSER_EMAILYour CREBS login email.USER_PASSWORDYour CREBS login password.TELEGRAM_TOKENYour Bot Token (e.g., 12345:ABC-def...).TELEGRAM_CHAT_IDYour numeric Chat ID (e.g., 987654321).🚀 How to RunOption A: Cloud Run (GitHub Actions)Uses automated proxy rotation to bypass the India firewall.Navigate to the Actions tab in your repository.Select Check CREBS Results from the sidebar.Click Run workflow.Note: Success depends on the availability of free Indian proxies. If this fails often, use Option B.Option B: Self-Hosted Runner (Recommended for India Users)Uses your laptop's internet connection to guarantee access.Go to Settings -> Actions -> Runners -> New self-hosted runner.Follow the instructions to install the runner on your Windows/Linux machine.Update your workflow file (.github/workflows/check_results.yml):YAMLruns-on: self-hosted  # Change from 'ubuntu-latest'
+Keep your laptop on. GitHub will trigger the script on your machine every 3 hours.📂 File StructurePlaintext├── .github/workflows/
+│   └── check_results.yml   # The automation schedule (every 3 hours)
+├── scraper.py              # The main Python logic (Login -> Scrape -> Notify)
+├── requirements.txt        # List of dependencies (requests, bs4, lxml)
+└── README.md               # This documentation
+⚠️ TroubleshootingThe Action isn't running automatically!Cause: Scheduled workflows (cron) only run if the file is in the default branch (main or master).Fix: Ensure your code is merged into the main branch.First Run: You must manually trigger the workflow at least once (click "Run workflow") before the schedule activates."Connection Refused" or "Max Retries Exceeded"Cause: The CREBS server is blocking the IP address.Fix: The free proxy being used is dead or blocked. The script will automatically try the next one on the next run. For a permanent fix, switch to Option B (Self-Hosted).📜 DisclaimerThis tool is for educational purposes and personal use only to facilitate checking your own exam results. Please do not use it to spam the government server or access accounts that do not belong to you.
