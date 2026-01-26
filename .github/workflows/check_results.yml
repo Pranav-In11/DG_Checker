@@ -4,7 +4,7 @@ on:
   push:                  # <--- ADD THIS (Runs immediately when you save)
   workflow_dispatch:     # <--- KEEPS THIS (Manual button)
   schedule:
-    - cron: '0 */3 * * *'
+    - cron: '1 */3 * * *'
 
 jobs:
   check-results:
