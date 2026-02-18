@@ -1,39 +1,29 @@
-name: Check CREBS Results
-
+name: CREBS Monitor
 on:
   schedule:
-    # Runs at minute 30 of hours 3, 6, 9, 12 UTC
-    # UTC 03:30 = 09:00 IST
-    # UTC 06:30 = 12:00 IST
-    # UTC 09:30 = 15:00 IST
-    # UTC 12:30 = 18:00 IST
-    - cron: '30 3,6,9,12 * * *'
-  
-  # Allows you to run it manually to test
+    - cron: '*/30 * * * *' # Every 30 mins
   workflow_dispatch:
 
 jobs:
-  check-results:
+  scrape:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: write
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Setup Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
-
-    - name: Install dependencies
-      # We install 'requests[socks]' to support all proxy types
-      run: |
-        pip install "requests[socks]" beautifulsoup4 lxml
-
-    - name: Run Scraper
-      env:
-        USER_EMAIL: ${{ secrets.USER_EMAIL }}
-        USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
-        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      run: python scraper.py
+      - uses: actions/checkout@v3
+      - setup-python: '3.10'
+      - run: pip install -r requirements.txt
+      - name: Run Script
+        env:
+          USER_EMAIL: ${{ secrets.USER_EMAIL }}
+          USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scraper.py
+      - name: Save History
+        run: |
+          git config --global user.name 'Bot'
+          git config --global user.email 'bot@bot.com'
+          git add scrape_history.json
+          git commit -m "Update history [skip ci]" || exit 0
+          git push
