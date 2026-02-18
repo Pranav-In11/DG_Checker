@@ -1,160 +1,136 @@
 import os
 import sys
+import json
+import time
+import random
 import requests
 from bs4 import BeautifulSoup
-import random
-import time
 
-# --- SAFETY FIX ---
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-# --- CONFIGURATION ---
+# --- CONFIGURATION (Reads from GitHub Secrets) ---
 EMAIL = os.getenv('USER_EMAIL')
 PASSWORD = os.getenv('USER_PASSWORD')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-LOGIN_URL = "http://220.156.188.226/CREBS/"
+BASE_URL = "http://220.156.188.226/CREBS/"
+URL_BOOKING = "http://220.156.188.226/CREBS/Booking/BookingList"
+HISTORY_FILE = "scrape_history.json"
 
-# SOURCE 1: Proxyscrape API
+# Proxy Sources
 URL_SOURCE_1 = "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&country=in&proxy_format=protocolipport&format=text&timeout=20000"
-
-# SOURCE 2: Proxifly GitHub (Raw Text)
 URL_SOURCE_2 = "https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/countries/IN/data.txt"
 
-# --- FUNCTIONS ---
-
-def get_proxies_source_1():
-    """Fetch from Proxyscrape"""
-    print("🌍 Fetching Source 1 (Proxyscrape)...")
-    try:
-        r = requests.get(URL_SOURCE_1, timeout=10)
-        if r.status_code == 200:
-            proxies = [line.strip() for line in r.text.split('\n') if line.strip()]
-            print(f"   ✅ Source 1 found {len(proxies)} proxies.")
-            return proxies
-    except Exception as e:
-        print(f"   ❌ Source 1 failed: {e}")
-    return []
-
-def get_proxies_source_2():
-    """Fetch from Proxifly (GitHub)"""
-    print("🌍 Fetching Source 2 (Proxifly)...")
-    try:
-        r = requests.get(URL_SOURCE_2, timeout=10)
-        if r.status_code == 200:
-            # GitHub list lines are like "http://ip:port" or "socks5://ip:port"
-            proxies = [line.strip() for line in r.text.split('\n') if line.strip()]
-            print(f"   ✅ Source 2 found {len(proxies)} proxies.")
-            return proxies
-    except Exception as e:
-        print(f"   ❌ Source 2 failed: {e}")
-    return []
+def get_proxies():
+    """Combines proxies from multiple sources"""
+    proxies = []
+    for url in [URL_SOURCE_1, URL_SOURCE_2]:
+        try:
+            r = requests.get(url, timeout=10)
+            if r.status_code == 200:
+                proxies.extend([line.strip() for line in r.text.split('\n') if line.strip()])
+        except: pass
+    return list(set(proxies))
 
 def send_telegram(message):
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID: return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     try:
         requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "HTML"}, timeout=10)
-    except: pass
-
-def attempt_scrape_with_proxy(proxy_url, attempt_num):
-    print(f"   👉 [Attempt {attempt_num}] Trying: {proxy_url} ...")
-    
-    session = requests.Session()
-    # Support for http, https, socks4, socks5 based on the URL prefix
-    session.proxies = {"http": proxy_url, "https": proxy_url}
-    
-    session.headers.update({
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'http://220.156.188.226/CREBS/'
-    })
-
-    try:
-        # 1. Test Connection (Short timeout to skip bad proxies fast)
-        r_get = session.get(LOGIN_URL, timeout=10)
-        if r_get.status_code != 200: return False, "Page load failed"
-
-        # 2. Login
-        payload = {'txtEmail': EMAIL, 'txtPassword': PASSWORD, 'returnUrl': ''}
-        r_post = session.post(LOGIN_URL, data=payload, timeout=15)
-
-        # 3. Validate
-        if "Signout" in r_post.text or "Welcome" in r_post.text:
-            return True, r_post.text
-        else:
-            return False, "Login failed"
-
     except Exception as e:
-        return False, str(e)
+        print(f"Telegram failed: {e}")
 
-def parse_and_notify(html_content):
-    soup = BeautifulSoup(html_content, 'lxml')
-    data_cells = soup.find_all('td', class_='tablebodytext')
+def scrape_data(proxy_url):
+    """Logs in and pulls HTML from both Results and Booking pages"""
+    session = requests.Session()
+    session.proxies = {"http": proxy_url, "https": proxy_url}
+    session.headers.update({'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'})
+
+    # 1. Login
+    payload = {'txtEmail': EMAIL, 'txtPassword': PASSWORD, 'returnUrl': ''}
+    res = session.post(BASE_URL, data=payload, timeout=20)
     
-    results = []
-    for i in range(0, len(data_cells), 4):
-        group = data_cells[i:i+4]
-        if len(group) == 4:
-            results.append({
-                'paper': group[0].get_text(strip=True),
-                'type': group[1].get_text(strip=True),
-                'date': group[2].get_text(strip=True),
-                'status': group[3].get_text(strip=True)
-            })
+    if "Signout" not in res.text:
+        return None
 
-    if results:
-        print(f"📊 Parsed {len(results)} results.")
-        message = "📢 <b>CREBS Result Update</b>\n\n"
-        has_update = False
-        for res in results:
-            icon = "✅" if "pass" in res['status'].lower() else "❌"
-            msg_line = f"{icon} <b>{res['paper']}</b>\nStatus: <b>{res['status']}</b>\n\n"
-            message += msg_line
-            has_update = True
-        
-        if has_update:
-            send_telegram(message)
-            print("✅ Telegram sent.")
-    else:
-        print("🤷 Login worked, but no results found.")
+    # 2. Get Results (from Home/Landing page)
+    results_html = res.text
+    
+    # 3. Get Bookings
+    booking_html = session.get(URL_BOOKING, timeout=20).text
+    
+    return {"results": results_html, "bookings": booking_html}
+
+def parse_and_compare(data_dict):
+    current_state = {}
+
+    # Parse Results Table
+    soup_res = BeautifulSoup(data_dict['results'], 'lxml')
+    res_cells = soup_res.find_all('td', class_='tablebodytext')
+    for i in range(0, len(res_cells), 4):
+        group = res_cells[i:i+4]
+        if len(group) == 4:
+            paper = group[0].get_text(strip=True)
+            status = group[3].get_text(strip=True)
+            current_state[f"RES_{paper}"] = status
+
+    # Parse Bookings Table (For Dates and "Under Process")
+    soup_book = BeautifulSoup(data_dict['bookings'], 'lxml')
+    b_table = soup_book.find('table', id='SeatBookingListView_tblListView')
+    if b_table:
+        for row in b_table.find_all('tr')[1:]:
+            cells = row.find_all('td', class_='tablebodytext')
+            if len(cells) >= 5:
+                paper = cells[0].get_text(strip=True)
+                status = cells[2].get_text(strip=True)
+                date = cells[3].get_text(strip=True)
+                remarks = cells[4].get_text(strip=True)
+                
+                # Logic for Oral exam under process
+                display_date = date if date != "-" else remarks
+                current_state[f"BOOK_{paper}"] = f"{status} | {display_date}"
+
+    # --- Change Detection ---
+    try:
+        with open(HISTORY_FILE, "r") as f:
+            old_state = json.load(f)
+    except:
+        old_state = {}
+
+    if current_state == old_state:
+        print("😴 No changes found.")
+        return
+
+    # Build Change Message
+    changes = []
+    for key, val in current_state.items():
+        if key not in old_state or old_state[key] != val:
+            icon = "📊" if "RES_" in key else "📅"
+            label = "RESULT" if "RES_" in key else "BOOKING"
+            paper_name = key.replace("RES_", "").replace("BOOK_","")
+            changes.append(f"{icon} <b>{label}: {paper_name}</b>\nNew: <code>{val}</code>")
+
+    if changes:
+        send_telegram("🔔 <b>CREBS UPDATE DETECTED!</b>\n\n" + "\n\n".join(changes))
+        with open(HISTORY_FILE, "w") as f:
+            json.dump(current_state, f)
+        print("🚀 Notification sent!")
 
 def run():
-    print("--- Starting Multi-Source Scraper ---")
-    
-    # 1. Get Lists from BOTH sources
-    list1 = get_proxies_source_1()
-    list2 = get_proxies_source_2()
-    
-    # 2. Combine and Remove Duplicates (using set)
-    all_proxies = list(set(list1 + list2))
-    
-    if not all_proxies:
-        print("❌ No proxies found from any source. Exiting.")
-        sys.exit(1)
-
-    print(f"🔥 Total unique proxies available: {len(all_proxies)}")
-
-    # 3. Randomize
+    print("🔄 Starting Scraper...")
+    all_proxies = get_proxies()
     random.shuffle(all_proxies)
-
-    # 4. Try top 30 proxies
-    success = False
-    for i, proxy in enumerate(all_proxies[:30]):
-        is_success, html = attempt_scrape_with_proxy(proxy, i+1)
-        if is_success:
-            print("🎉 SUCCESS! Connection established.")
-            parse_and_notify(html)
-            success = True
-            break
-            
-    if not success:
-        print("❌ All attempts failed.")
-        sys.exit(1)
+    
+    for i, proxy in enumerate(all_proxies[:20]):
+        print(f"  Trying proxy {i+1}: {proxy}")
+        try:
+            data = scrape_data(proxy)
+            if data:
+                parse_and_compare(data)
+                return # Success
+        except Exception as e:
+            print(f"  Error: {e}")
+    
+    print("❌ All proxies failed or login invalid.")
 
 if __name__ == "__main__":
     run()
